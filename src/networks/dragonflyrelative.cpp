@@ -100,12 +100,11 @@ int dragonflyrelative_hopcnt(int src, int dest)
   return hopcnt;  
 }
 
-
 // packet output port based on the source, destination and current location
 // never to be called if you are on the dest router
 // MS: it seems as though the returned value is the offset to the global
 //     port in the current router's channel array
-int dragonflyrelative_port(int rID, int source, int dest) {
+int dragonflyrelative_port(int rID, int source, int dest, bool debug) {
   int _grp_num_routers= gAA;
   int _grp_num_nodes =_grp_num_routers*gPP;
 
@@ -117,21 +116,30 @@ int dragonflyrelative_port(int rID, int source, int dest) {
 
   int dist = (( dest_grp_ID + gGG ) - grp_ID ) % gGG; // forward distance
 
-  //which router within this group the packet needs to go to
+  // which router within this group the packet needs to go to
+  // Node channels are first
   if (dest_grp_ID == grp_ID) {
-    grp_RID = int(dest / gPP); // local link
+    grp_RID = (dest % _grp_num_nodes) / gPP;  // router with the dest node
   } else {
-    grp_RID = dist / gPP;
+    grp_RID = (dist - 1) / gPP; // router with the global link to our hop
   }
 
-  //At the last hop
-  if (dest >= rID*gPP && dest < (rID+1)*gPP) {    
-    out_port = dest%gPP;
-  } else if (grp_RID == rID) {
-    //At the optical link
-    out_port = gPP + (gAA-1) + ( dist % gPP );
+  if(debug){
+    cout << "\nMessage\n";
+    cout << "dest group id: " << dest_grp_ID << "\n";
+    cout << "group id: " << grp_ID << "\n";
+    cout << "grp_RID: " << grp_RID << "\n";
+    cout << "dist: " << dist << "\n";
+  }
+  
+  if (dest >= rID*gPP && dest < (rID+1)*gPP) {
+    // at the last hop  
+    out_port = dest % gPP; // channel to the node
+  } else if (grp_RID == rID % gAA) {
+    // at the optical link
+    out_port = gPP + (gAA-1) + ( (dist - 1) % gPP );
   } else {
-    //need to route within a group
+    // need to route within a group
     assert(grp_RID!=-1);
 
     if (rID < grp_RID){
@@ -142,9 +150,20 @@ int dragonflyrelative_port(int rID, int source, int dest) {
   }  
  
   assert(out_port!=-1);
+  if(debug){
+    cout << "source: " << source << "\n";
+    cout << "dest: " << dest << "\n";
+    cout << "router: " << rID << "\n";
+    cout << "returned port: " << out_port << "\n";
+    getchar();
+  }
+
   return out_port;
 }
 
+int dragonflyrelative_port(int rID, int source, int dest) {
+  return dragonflyrelative_port(rID, source, dest, false);
+}
 
 DragonFlyRelative::DragonFlyRelative( const Configuration &config, const string & name ) :
   Network( config, name )
@@ -224,14 +243,14 @@ void DragonFlyRelative::_BuildNet( const Configuration &config )
 
 
 
-  cout << " Dragonfly " << endl;
-  cout << " p = " << _p << " n = " << _n << endl; // MS: _p - processors per router, _n - dimension, always 1
-  cout << " each switch - total radix =  "<< _k << endl;
-  cout << " # of switches = "<<  _num_of_switch << endl;
+  cout << " Dragonfly Relative" << endl;
+  cout << " processors per router = " << _p << " dimension = " << _n << endl; // MS: _p - processors per router, _n - dimension, always 1
+  cout << " each router has radix =  "<< _k << endl;
+  cout << " # of routers = "<<  _num_of_switch << endl;
   cout << " # of channels = "<<  _channels << endl;
-  cout << " # of nodes ( size of network ) = " << _nodes << endl;
-  cout << " # of groups (_g) = " << _g << endl;
-  cout << " # of routers per group (_a) = " << _a << endl;
+  cout << " # of nodes (processors) = " << _nodes << endl;
+  cout << " # of groups = " << _g << endl;
+  cout << " # of routers per group = " << _a << endl;
 
   // MS: loop through each router. this is confusing because they call it node
   // which is not the terminology which we have been using
@@ -406,13 +425,14 @@ double DragonFlyRelative::Capacity( ) const
   return (double)_k / 8.0;
 }
 
+// routing functions are stored globally and usually added in ../routefunc.cpp
 void DragonFlyRelative::RegisterRoutingFunctions(){
 
   gRoutingFunctionMap["min_dragonflyrelative"] = &min_dragonflyrelative;
   gRoutingFunctionMap["ugal_dragonflyrelative"] = &ugal_dragonflyrelative;
 }
 
-
+// route based on the shortest path algorithm
 void min_dragonflyrelative( const Router *r, const Flit *f, int in_channel, 
 		       OutputSet *outputs, bool inject )
 {
@@ -435,22 +455,28 @@ void min_dragonflyrelative( const Router *r, const Flit *f, int in_channel,
   int out_vc = 0;
   int dest_grp_ID=-1;
 
+  // came from a processor (speculatively):
   if ( in_channel < gPP ) {
     out_vc = 0;
     f->ph = 0;
-    if (dest_grp_ID == grp_ID) {
+    if (dest_grp_ID == grp_ID) { // does this ever get trigger?
       f->ph = 1;
     }
-  } 
+  }
 
+  if(f->id == 0){
+    out_port = dragonflyrelative_port(rID, f->src, dest, true);
+  } else {
+    out_port = dragonflyrelative_port(rID, f->src, dest, false);
+  }
 
-  out_port = dragonflyrelative_port(rID, f->src, dest);
-
-  //optical dateline
-  if (out_port >=gPP + (gAA-1)) {
-    f->ph = 1;
-  }  
   
+
+  // optical link
+  if( out_port >= gPP + (gAA-1) ) {
+    f->ph = 1;
+  }
+
   out_vc = f->ph;
   if (debug)
     *gWatchOut << GetSimTime() << " | " << r->FullName() << " | "

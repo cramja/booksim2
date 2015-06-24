@@ -142,6 +142,12 @@ int dragonfly_port(int rID, int source, int dest){
   }  
  
   assert(out_port!=-1);
+  cout << "\nMessage\n";
+  cout << "source: " << source << "\n";
+  cout << "dest: " << dest << "\n";
+  cout << "router: " << rID << "\n";
+  cout << "returned port: " << out_port << "\n";
+  getchar();
   return out_port;
 }
 
