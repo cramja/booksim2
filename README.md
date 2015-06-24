@@ -6,6 +6,9 @@ Originally developed for and introduced with the [Principles and Practices of In
 The current major release, BookSim 2.0, supports a wide range of topologies such as mesh, torus and flattened butterfly networks, provides diverse routing algorithms and includes numerous options for customizing the network's router microarchitecture.
 
 ---
+Note: I forked this project in order to create new topologies in the dragonfly network model. Currently, the dragonfly network uses the absolute topology. We hope to add at least two more. For further information on topological differences, see Camarero,  Topological Characterization of Hamming and Dragonfly Networks and Its Implications on Routing.
+
+---
 
 If you use BookSim in your research, we would appreciate the following citation in any publications to which it has contributed:
 
