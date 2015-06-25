@@ -109,51 +109,50 @@ int dragonflyrelative_port(int rID, int source, int dest, bool debug) {
   int _grp_num_nodes =_grp_num_routers*gPP;
 
   int out_port = -1;
-  int grp_ID = int(rID / _grp_num_routers); 
-  int dest_grp_ID = int(dest/_grp_num_nodes);
-  //int grp_output=-1;
-  int grp_RID=-1;
+  int my_group = int(rID / _grp_num_routers); 
+  int to_group = int(dest/_grp_num_nodes);
+  int my_router = rID % gAA; // router in group
 
-  int dist = (( dest_grp_ID + gGG ) - grp_ID ) % gGG; // forward distance
+  int target_router=-1;
+
+  int dist = (( to_group + gGG ) - my_group ) % gGG; // forward distance
 
   // which router within this group the packet needs to go to
   // Node channels are first
-  if (dest_grp_ID == grp_ID) {
-    grp_RID = (dest % _grp_num_nodes) / gPP;  // router with the dest node
+  if (to_group == my_group) {
+    target_router = (dest % _grp_num_nodes) / gPP;  // router with the dest node
   } else {
-    grp_RID = (dist - 1) / gPP; // router with the global link to our hop
-  }
-
-  if(debug){
-    cout << "\nMessage\n";
-    cout << "dest group id: " << dest_grp_ID << "\n";
-    cout << "group id: " << grp_ID << "\n";
-    cout << "grp_RID: " << grp_RID << "\n";
-    cout << "dist: " << dist << "\n";
+    target_router = (dist - 1) / gPP; // router with the global link to our hop
   }
   
-  if (dest >= rID*gPP && dest < (rID+1)*gPP) {
+  if (my_router == target_router && my_group == to_group) {
     // at the last hop  
     out_port = dest % gPP; // channel to the node
-  } else if (grp_RID == rID % gAA) {
+  } else if (target_router == my_router) {
     // at the optical link
     out_port = gPP + (gAA-1) + ( (dist - 1) % gPP );
   } else {
     // need to route within a group
-    assert(grp_RID!=-1);
+    assert(target_router!=-1);
 
-    if (rID < grp_RID){
-      out_port = (grp_RID % _grp_num_routers) - 1 + gPP;
+    if (my_router < target_router){
+      out_port = (target_router % _grp_num_routers) - 1 + gPP;
     }else{
-      out_port = (grp_RID % _grp_num_routers) + gPP;
+      out_port = (target_router % _grp_num_routers) + gPP;
     }
   }  
  
   assert(out_port!=-1);
   if(debug){
-    cout << "source: " << source << "\n";
-    cout << "dest: " << dest << "\n";
-    cout << "router: " << rID << "\n";
+    cout << "\nMessage\n";
+    cout << "source:     " << source << "\n";
+    cout << "dest:       " << dest << "\n";
+    cout << "router:     " << rID << "\n";
+    cout << "loc router: " << my_router << "\n";
+    cout << "dest group: " << to_group << "\n";
+    cout << "my group:   " << my_group << "\n";
+    cout << "target_router: " << target_router << "\n";
+    cout << "dist:       " << dist << "\n";
     cout << "returned port: " << out_port << "\n";
     getchar();
   }
@@ -382,11 +381,11 @@ void DragonFlyRelative::_BuildNet( const Configuration &config )
    int my_switch = node;
    int my_switch_local = my_switch % _a;
 
-   for ( int cnt = 0; cnt < _p; ++cnt ) {
-      // MS: get destination port based on the relative configuration
-      to_group = ( my_switch_local * _p + cnt ) % total_groups;
+   for ( int router_port = 0; router_port < _p; ++router_port ) {
+      int group_port = router_port + my_switch_local * _p;
+      to_group = (my_group + group_port + 1) % total_groups;
       // the accepting port is based on how many forward hops it takes to get to the source group
-      to_port = (to_group + _g - my_group) % _g; // forward distance
+      to_port = ((my_group + _g - to_group) % _g ) - 1; // port in the target group which connects my group
       int router_offset = to_port / _p;
       int port_offset = to_port % _p;
       _input = to_group * _num_ports_per_switch * _a + // group offset
@@ -394,15 +393,16 @@ void DragonFlyRelative::_BuildNet( const Configuration &config )
       _routers[node]->AddInputChannel( _chan[_input], _chan_cred[_input] );
 
 
-      cout << "my router abs: " << node << "\n";
-      cout << "my router rel: " << my_switch_local << "\n";
-      cout << "to group: " << to_group << "\n";
-      cout << "my group: " << my_group << "\n";
-      cout << "my port cnt: " << cnt << "\n";
-      cout << "router offset" << router_offset << "\n";
-      cout << "port offset: " << port_offset << "\n";
-      cout << "returned port: " << _input << "\n";
-      getchar();
+      // cout << "my router abs: " << node << "\n";
+      // cout << "my router rel: " << my_switch_local << "\n";
+      // cout << "to group: " << to_group << "\n";
+      // cout << "my group: " << my_group << "\n";
+      // cout << "to port: " << to_port << "\n";
+      // cout << "router port: " << router_port << "\n";
+      // cout << "router offset" << router_offset << "\n";
+      // cout << "port offset: " << port_offset << "\n";
+      // cout << "returned port: " << _input << "\n";
+      // getchar();
     }
 
   }

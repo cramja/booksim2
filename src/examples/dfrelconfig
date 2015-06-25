@@ -66,7 +66,7 @@ num_vcs     = 2;
 priority = none;
 traffic       = uniform; 
 
-injection_rate = 0.8;
+injection_rate = 0.5;
 packet_size = 10;
 injection_rate_uses_flits=1;
 
