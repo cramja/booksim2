@@ -104,7 +104,7 @@ int dragonflyrelative_hopcnt(int src, int dest)
 // never to be called if you are on the dest router
 // MS: it seems as though the returned value is the offset to the global
 //     port in the current router's channel array
-int dragonflyrelative_port(int rID, int source, int dest, bool debug) {
+int dragonflyrelative_port(int rID, int source, int dest) {
   int _grp_num_routers= gAA;
   int _grp_num_nodes =_grp_num_routers*gPP;
 
@@ -143,25 +143,7 @@ int dragonflyrelative_port(int rID, int source, int dest, bool debug) {
   }  
  
   assert(out_port!=-1);
-  if(debug){
-    cout << "\nMessage\n";
-    cout << "source:     " << source << "\n";
-    cout << "dest:       " << dest << "\n";
-    cout << "router:     " << rID << "\n";
-    cout << "loc router: " << my_router << "\n";
-    cout << "dest group: " << to_group << "\n";
-    cout << "my group:   " << my_group << "\n";
-    cout << "target_router: " << target_router << "\n";
-    cout << "dist:       " << dist << "\n";
-    cout << "returned port: " << out_port << "\n";
-    getchar();
-  }
-
   return out_port;
-}
-
-int dragonflyrelative_port(int rID, int source, int dest) {
-  return dragonflyrelative_port(rID, source, dest, false);
 }
 
 DragonFlyRelative::DragonFlyRelative( const Configuration &config, const string & name ) :
@@ -392,17 +374,6 @@ void DragonFlyRelative::_BuildNet( const Configuration &config )
                 router_offset * _num_ports_per_switch + (2 * _p - 1) + port_offset;
       _routers[node]->AddInputChannel( _chan[_input], _chan_cred[_input] );
 
-
-      // cout << "my router abs: " << node << "\n";
-      // cout << "my router rel: " << my_switch_local << "\n";
-      // cout << "to group: " << to_group << "\n";
-      // cout << "my group: " << my_group << "\n";
-      // cout << "to port: " << to_port << "\n";
-      // cout << "router port: " << router_port << "\n";
-      // cout << "router offset" << router_offset << "\n";
-      // cout << "port offset: " << port_offset << "\n";
-      // cout << "returned port: " << _input << "\n";
-      // getchar();
     }
 
   }
@@ -470,13 +441,7 @@ void min_dragonflyrelative( const Router *r, const Flit *f, int in_channel,
     }
   }
 
-  if(f->id == 0){
-    out_port = dragonflyrelative_port(rID, f->src, dest, true);
-  } else {
-    out_port = dragonflyrelative_port(rID, f->src, dest, false);
-  }
-
-  
+  out_port = dragonflyrelative_port(rID, f->src, dest);
 
   // optical link
   if( out_port >= gPP + (gAA-1) ) {
