@@ -351,12 +351,8 @@ void DragonFlyRelative::_BuildNet( const Configuration &config )
 
         if ( cnt < _dim_ID)  {
 
-          _input =  
-          // MS: bump to beginning of the group
-          grp_ID  * _num_ports_per_switch * _a -
-          // MS: bump to first local port in target switch
+          _input = grp_ID  * _num_ports_per_switch * _a -
           (_dim_ID - cnt) *  _num_ports_per_switch +
-          // 
           _dim_ID * _num_ports_per_switch + 
           (_dim_ID - 1);
         } else {
@@ -378,8 +374,7 @@ void DragonFlyRelative::_BuildNet( const Configuration &config )
    }
 
 
-   // add INPUT channels -- "optical" channels connecting the groups
-   // MS: we call these global channels
+   // add inter group 'global' input channels
    int total_groups = _g;
    int my_group = node /_a;
    int to_group;
@@ -397,6 +392,17 @@ void DragonFlyRelative::_BuildNet( const Configuration &config )
       _input = to_group * _num_ports_per_switch * _a + // group offset
                 router_offset * _num_ports_per_switch + (2 * _p - 1) + port_offset;
       _routers[node]->AddInputChannel( _chan[_input], _chan_cred[_input] );
+
+
+      cout << "my router abs: " << node << "\n";
+      cout << "my router rel: " << my_switch_local << "\n";
+      cout << "to group: " << to_group << "\n";
+      cout << "my group: " << my_group << "\n";
+      cout << "my port cnt: " << cnt << "\n";
+      cout << "router offset" << router_offset << "\n";
+      cout << "port offset: " << port_offset << "\n";
+      cout << "returned port: " << _input << "\n";
+      getchar();
     }
 
   }
